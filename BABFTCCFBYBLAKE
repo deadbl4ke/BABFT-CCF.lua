@@ -1,0 +1,238 @@
+getgenv().WEBHOOK = "https://discord.com/api/webhooks/1433428316890599435/wgmLVuaEmqIZUSw7mSHmpz40sVCmuvjTnIw1F7CPani11bTJF_xjr2c1eA_y2y-5qB9p" -- webh
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+if getgenv().CANDY_LOOP == true then
+    return
+else
+    getgenv().CANDY_LOOP = true
+end
+
+local plrs = game:GetService("Players")
+local plr = plrs.LocalPlayer
+local plrgui = plr:WaitForChild("PlayerGui")
+local stgui = game:GetService("StarterGui")
+local rs = game:GetService("RunService")
+
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+local Houses = workspace:WaitForChild("Houses")
+
+plr.CharacterAdded:Connect(function(c)
+    char = c
+    hrp = char:WaitForChild("HumanoidRootPart")
+end)
+
+local plrinv = {}
+local inv = plr.Data
+
+for _, child in pairs(inv:GetChildren()) do
+    if child:IsA("IntValue") then
+        plrinv[child.Name] = child.Value
+    end
+end
+
+local Pool = {}
+
+local function Force(part, ws)
+    if Pool[part] then return end
+    Pool[part] = rs.Heartbeat:Connect(function()
+        if not part or not part.Parent then
+            Pool[part]:Disconnect()
+            Pool[part] = nil
+            return
+        end
+        part.CFrame = hrp.CFrame
+        part.Size = Vector3.new(10, 10, 10)
+        part.CanCollide = false
+        part.Transparency = 1
+        if ws ~= 0 then
+            char:WaitForChild("Humanoid").WalkSpeed = ws
+        end
+    end)
+end
+
+local a = 0
+local function AutoFarm()
+    local ws = char:WaitForChild("Humanoid").WalkSpeed
+    local h = Houses:GetDescendants()
+    for _, sdf in ipairs(h) do
+        if sdf.Name == "DoorInnerTouch" and sdf:IsA("BasePart") then
+            if not sdf:GetAttribute("Forced") then
+                a = a + 1
+                Force(sdf, ws)
+                sdf:SetAttribute("Forced", true)
+            end
+        end
+    end
+    for _, sdf in ipairs(h) do
+        if sdf.Name == "GiantHand" then
+            sdf:Destroy()
+        end
+    end
+end
+
+AutoFarm()
+stgui:SetCore("SendNotification", {
+    Title = "Made by Blake",
+    Text = string.format("Claiming %d Houses...", a),
+    Icon = "rbxassetid://7781284023",
+    Duration = 4
+})
+
+wait(0.2)
+
+local function SendWebhook(purple, orange, blue)
+    if not getgenv().WEBHOOK then return end
+    local data = {
+        embeds = {{
+            title = "Candy Farm Results",
+            color = 0xFFFFF, 
+            fields = {
+                {name = "Purple Candy", value = tostring(purple), inline = true},
+                {name = "Yellow Candy", value = tostring(orange), inline = true},
+                {name = "Blue Candy", value = tostring(blue), inline = true},
+            },
+        }}
+    }
+
+    data.embeds[1].fields[1].name = "Purple Candy"
+    data.embeds[1].fields[1].value = tostring(purple)
+    data.embeds[1].fields[1].inline = true
+    data.embeds[1].fields[2].name = "Yellow Candy"
+    data.embeds[1].fields[2].value = tostring(orange)
+    data.embeds[1].fields[2].inline = true
+    data.embeds[1].fields[3].name = "Blue Candy"
+    data.embeds[1].fields[3].value = tostring(blue)
+    data.embeds[1].fields[3].inline = true
+
+    data.embeds[1].color = 0x9B59B6 
+    if purple >= orange and purple >= blue then
+        data.embeds[1].color = 0x9B59B6
+    elseif orange >= purple and orange >= blue then
+        data.embeds[1].color = 0xF1C40F
+    elseif blue >= purple and blue >= orange then
+        data.embeds[1].color = 0x3498DB
+    end
+
+    local headers = {["Content-Type"] = "application/json"}
+    local httprequest = (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request) or request
+    if httprequest then
+        pcall(function()
+            httprequest({
+                Url = getgenv().WEBHOOK,
+                Method = "POST",
+                Headers = headers,
+                Body = game:GetService("HttpService"):JSONEncode(data)
+            })
+        end)
+    end
+end
+
+if a ~= 0 then
+    local to = 10
+    local st = tick()
+    repeat
+        task.wait()
+    until plr.Data.CandyBlue.Value ~= plrinv["CandyBlue"]
+       or plr.Data.CandyOrange.Value ~= plrinv["CandyOrange"]
+       or plr.Data.CandyPurple.Value ~= plrinv["CandyPurple"]
+       or (tick() - st) >= to
+
+    if (tick() - st) < to then
+        local purple = plr.Data.CandyPurple.Value - plrinv["CandyPurple"]
+        local orange = plr.Data.CandyOrange.Value - plrinv["CandyOrange"]
+        local blue = plr.Data.CandyBlue.Value - plrinv["CandyBlue"]
+        if purple + orange + blue > 0 then
+            SendWebhook(purple, orange, blue)
+        end
+    else
+        stgui:SetCore("SendNotification", {
+            Title = "Made by Blake",
+            Text = "Something went wrong..",
+            Icon = "rbxassetid://7781288646",
+            Duration = 3
+        })
+    end
+end
+
+wait(2)
+
+stgui:SetCore("SendNotification", {
+    Title = "Made by Blake",
+    Text = "Server Hopping...",
+    Icon = "rbxassetid://7781288646",
+    Duration = 3
+})
+
+local JobId = game.JobId
+local PlaceId = game.PlaceId
+local HttpService = cloneref(game:GetService("HttpService"))
+local TeleportService = cloneref(game:GetService("TeleportService"))
+
+function missing(t, f, fallback)
+    if type(f) == t then return f end
+    return fallback
+end
+
+queueteleport = missing("function", queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport) or queueonteleport)
+httprequest = missing("function", request or http_request or (syn and syn.request) or (http and http.request) or (fluxus and fluxus.request))
+
+local function getServers()
+    local servers = {}
+    local req = httprequest({Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", 537413528)})
+    local body = HttpService:JSONDecode(req.Body)
+    if body and body.data then
+        for _, v in next, body.data do
+            if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= JobId then
+                table.insert(servers, 1, v.id)
+            end
+        end
+    end
+    return servers
+end
+
+local function Shop()
+    local servers = getServers()
+    if #servers == 0 then
+        stgui:SetCore("SendNotification", {
+          Title = "Made by Blake",
+          Text = "No server found, retry in 5 seconds",
+          Icon = "rbxassetid://7781250539",
+          Duration = 4
+        })
+        task.wait(5)
+        return Shop()
+    end
+    local success, err = pcall(function()
+        queueteleport(script.Source) -- execute script again after server hop
+        TeleportService:TeleportToPlaceInstance(PlaceId, servers[math.random(1, #servers)], plrs.LocalPlayer)
+    end)
+    if not success then
+        stgui:SetCore("SendNotification", {
+          Title = "Made by Blake",
+          Text = "Failed to Server Hop, retry in 5 seconds",
+          Icon = "rbxassetid://7781250539",
+          Duration = 4
+        })
+        task.wait(5)
+        Shop()
+    end
+end
+
+TeleportService.TeleportInitFailed:Connect(function(player, errorMessage)
+    if player == plrs.LocalPlayer then
+        stgui:SetCore("SendNotification", {
+            Title = "Made by Blake",
+            Text = "Server full, retry in 5 seconds",
+            Icon = "rbxassetid://7781250539",
+            Duration = 4
+        })
+        task.wait(5)
+        Shop()
+    end
+end)
+
+Shop()
